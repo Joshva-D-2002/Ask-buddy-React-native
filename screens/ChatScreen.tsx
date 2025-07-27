@@ -9,18 +9,15 @@ import {
     KeyboardAvoidingView,
     Platform,
     TouchableWithoutFeedback,
-    Dimensions,
     ActivityIndicator,
     Alert,
-    Keyboard
+    Keyboard,
+    Switch,
+    Modal
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { InferenceClient } from '@huggingface/inference';
 import { sendChatCompletion } from '../services/chat.service';
-import styles from '../styles/style'
-
-const client = new InferenceClient("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");
-const { height: screenHeight } = Dimensions.get('window');
+import createStyles from '../styles/style';
 
 type Message = { sender: 'user' | 'ai'; text: string; hidden?: boolean };
 type Chat = { id: number; messages: Message[]; title: string; timestamp: Date; messageCount: number };
@@ -31,12 +28,16 @@ export default function ChatScreen() {
     const [activeChatId, setActiveChatId] = useState<number | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [sidebarVisible, setSidebarVisible] = useState(false);
+    const [settingsVisible, setSettingsVisible] = useState(false);
+    const [aboutVisible, setAboutVisible] = useState(false);
     const [userName, setUserName] = useState('');
-    const [isFirstLaunch, setIsFirstLaunch] = useState(true);
     const [isInitializing, setIsInitializing] = useState(true);
+    const [isDarkMode, setIsDarkMode] = useState(false);
     const scrollViewRef = useRef<ScrollView>(null);
 
     const MAX_MESSAGES_PER_CHAT = 10;
+
+    const styles = createStyles(isDarkMode);
 
     useEffect(() => {
         initializeApp();
@@ -46,8 +47,14 @@ export default function ChatScreen() {
         try {
             setIsInitializing(true);
             const storedName = await AsyncStorage.getItem('username');
+            const storedDarkMode = await AsyncStorage.getItem('darkMode');
+            
             if (storedName) {
                 setUserName(storedName);
+            }
+            
+            if (storedDarkMode) {
+                setIsDarkMode(JSON.parse(storedDarkMode));
             }
 
             const defaultChat: Chat = {
@@ -71,7 +78,11 @@ export default function ChatScreen() {
         }
     };
 
-
+    const toggleDarkMode = async () => {
+        const newDarkMode = !isDarkMode;
+        setIsDarkMode(newDarkMode);
+        await AsyncStorage.setItem('darkMode', JSON.stringify(newDarkMode));
+    };
 
     const sendInitialGreeting = async (username: string, chatId: number) => {
         const greetingMessage = `My name is ${username}`;
@@ -116,7 +127,6 @@ export default function ChatScreen() {
     };
 
     const handleSend = async () => {
-
         if (!userInput.trim() || !activeChatId) return;
 
         const currentChatData = chatHistory.find(chat => chat.id === activeChatId);
@@ -167,7 +177,7 @@ export default function ChatScreen() {
                 content: msg.text
             }));
             apiMessages.push({ role: 'user', content: messageText });
-            
+
             const aiText = await sendChatCompletion(apiMessages);
             const filteredAiText = filterAiResponse(aiText);
             const aiMessage: Message = { sender: 'ai', text: filteredAiText };
@@ -228,9 +238,23 @@ export default function ChatScreen() {
 
     const visibleMessages = currentChat?.messages.filter(msg => !msg.hidden) || [];
 
+    // Features list for About section
+    const features = [
+        { icon: '💬', text: 'Intelligent AI conversations with context awareness' },
+        { icon: '📱', text: 'Multiple chat sessions with automatic title generation' },
+        { icon: '🌙', text: 'Dark mode for comfortable night-time usage' },
+        { icon: '💾', text: 'Local storage for chat history and preferences' },
+        { icon: '🔒', text: 'Privacy-focused design with secure data handling' },
+        { icon: '⚡', text: 'Fast and responsive user interface' },
+        { icon: '📊', text: 'Message counter to track conversation length' },
+        { icon: '🎨', text: 'Clean and modern Material Design interface' },
+        { icon: '🔄', text: 'Real-time message synchronization' },
+        { icon: '⚙️', text: 'Customizable settings and preferences' }
+    ];
+
     if (isInitializing) {
         return (
-            <SafeAreaView style={styles.loadingContainer}>
+            <SafeAreaView style={[styles.loadingContainer, styles.container]}>
                 <ActivityIndicator size="large" color="#007bff" />
                 <Text style={styles.loadingText}>Loading...</Text>
             </SafeAreaView>
@@ -238,7 +262,7 @@ export default function ChatScreen() {
     }
 
     return (
-        <SafeAreaView style={{ flex: 1 }}>
+        <SafeAreaView style={styles.container}>
             <KeyboardAvoidingView
                 style={{ flex: 1 }}
                 behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
@@ -246,6 +270,7 @@ export default function ChatScreen() {
             >
                 <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
                     <View style={{ flex: 1 }}>
+                        {/* Header */}
                         <View style={styles.headerContainer}>
                             <TouchableOpacity
                                 style={styles.menuButton}
@@ -259,9 +284,15 @@ export default function ChatScreen() {
                                     {userName ? `Hi ${userName}!` : 'Your AI Assistant'}
                                 </Text>
                             </View>
-                            <View style={styles.headerSpacer} />
+                            <TouchableOpacity
+                                style={styles.settingsButton}
+                                onPress={() => setSettingsVisible(true)}
+                            >
+                                <Text style={styles.settingsButtonText}>⚙️</Text>
+                            </TouchableOpacity>
                         </View>
 
+                        {/* Chat Content */}
                         <ScrollView
                             ref={scrollViewRef}
                             contentContainerStyle={styles.chatContent}
@@ -308,12 +339,14 @@ export default function ChatScreen() {
                             )}
                         </ScrollView>
 
+                        {/* Input Container */}
                         <View style={styles.inputContainer}>
                             <View style={styles.inputRow}>
                                 <TextInput
                                     value={userInput}
                                     onChangeText={setUserInput}
                                     placeholder="Type your message..."
+                                    placeholderTextColor={isDarkMode ? '#aaa' : '#999'}
                                     style={styles.chatInput}
                                     multiline
                                     textAlignVertical="top"
@@ -322,11 +355,10 @@ export default function ChatScreen() {
                                 />
                                 <TouchableOpacity
                                     onPress={handleSend}
-                                    style={styles.sendButton}
-                                // style={[styles.sendButton, (!userInput.trim() || isLoading) && styles.sendButtonDisabled]}
-                                // disabled={!userInput.trim() || isLoading}
+                                    style={[styles.sendButton, (!userInput.trim() || isLoading) && styles.sendButtonDisabled]}
+                                    disabled={!userInput.trim() || isLoading}
                                 >
-                                    <Text style={styles.sendButtonText}>Snd</Text>
+                                    <Text style={styles.sendButtonText}>Send</Text>
                                 </TouchableOpacity>
                             </View>
                         </View>
@@ -374,6 +406,111 @@ export default function ChatScreen() {
                                 </View>
                             </View>
                         )}
+
+                        {/* Settings Modal */}
+                        <Modal
+                            visible={settingsVisible}
+                            transparent={true}
+                            animationType="fade"
+                            onRequestClose={() => setSettingsVisible(false)}
+                        >
+                            <View style={styles.modalBackdrop}>
+                                <View style={styles.modalContainer}>
+                                    <Text style={styles.modalTitle}>⚙️ Settings</Text>
+                                    
+                                    <ScrollView showsVerticalScrollIndicator={false}>
+                                        <View style={styles.settingItem}>
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={styles.settingLabel}>Dark Mode</Text>
+                                                <Text style={styles.settingDescription}>
+                                                    Enable dark theme for better night experience
+                                                </Text>
+                                            </View>
+                                            <Switch
+                                                value={isDarkMode}
+                                                onValueChange={toggleDarkMode}
+                                                trackColor={{ false: '#767577', true: '#007bff' }}
+                                                thumbColor={isDarkMode ? '#fff' : '#f4f3f4'}
+                                            />
+                                        </View>
+
+                                        <View style={styles.settingItem}>
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={styles.settingLabel}>User Name</Text>
+                                                <Text style={styles.settingDescription}>
+                                                    Current: {userName || 'Not set'}
+                                                </Text>
+                                            </View>
+                                        </View>
+
+                                        <View style={styles.settingItem}>
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={styles.settingLabel}>Message Limit</Text>
+                                                <Text style={styles.settingDescription}>
+                                                    {MAX_MESSAGES_PER_CHAT} messages per chat session
+                                                </Text>
+                                            </View>
+                                        </View>
+
+                                        <TouchableOpacity
+                                            style={styles.aboutButton}
+                                            onPress={() => {
+                                                setSettingsVisible(false);
+                                                setAboutVisible(true);
+                                            }}
+                                        >
+                                            <Text style={styles.aboutButtonText}>About AskBuddy</Text>
+                                        </TouchableOpacity>
+                                    </ScrollView>
+
+                                    <TouchableOpacity
+                                        style={styles.closeModalButton}
+                                        onPress={() => setSettingsVisible(false)}
+                                    >
+                                        <Text style={styles.closeModalButtonText}>Close</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        </Modal>
+
+                        {/* About Modal */}
+                        <Modal
+                            visible={aboutVisible}
+                            transparent={true}
+                            animationType="fade"
+                            onRequestClose={() => setAboutVisible(false)}
+                        >
+                            <View style={styles.modalBackdrop}>
+                                <View style={styles.modalContainer}>
+                                    <Text style={styles.aboutTitle}>🤖 AskBuddy</Text>
+                                    <Text style={styles.aboutSubtitle}>
+                                        Your intelligent AI conversation companion
+                                    </Text>
+                                    
+                                    <ScrollView showsVerticalScrollIndicator={false}>
+                                        <Text style={styles.featuresTitle}>✨ Features</Text>
+                                        
+                                        {features.map((feature, index) => (
+                                            <View key={index} style={styles.featureItem}>
+                                                <Text style={styles.featureIcon}>{feature.icon}</Text>
+                                                <Text style={styles.featureText}>{feature.text}</Text>
+                                            </View>
+                                        ))}
+                                        
+                                        <Text style={styles.versionText}>
+                                            Version 1.0.0 • Built with React Native
+                                        </Text>
+                                    </ScrollView>
+
+                                    <TouchableOpacity
+                                        style={styles.closeModalButton}
+                                        onPress={() => setAboutVisible(false)}
+                                    >
+                                        <Text style={styles.closeModalButtonText}>Close</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        </Modal>
                     </View>
                 </TouchableWithoutFeedback>
             </KeyboardAvoidingView>

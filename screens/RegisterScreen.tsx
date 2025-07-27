@@ -13,7 +13,7 @@ import Toast from 'react-native-toast-message';
 import InputField from '../components/InputField';
 import PasswordField from '../components/PasswordField';
 import FormButton from '../components/FormButton';
-import styles from '../styles/style';
+import createStyles from '../styles/style';
 import { addUser } from '../services/user.service';
 
 type RegisterScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Register'>;
@@ -28,6 +28,7 @@ const RegisterScreen = () => {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const styles = createStyles();
 
     const showToast = (message: string) => {
         Toast.show({
@@ -85,7 +86,7 @@ const RegisterScreen = () => {
     return (
         <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            style={styles.container}
+            style={styles.container1}
         >
             <View style={styles.card}>
                 <Text style={styles.title}>Create Account</Text>

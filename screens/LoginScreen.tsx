@@ -12,7 +12,7 @@ import Toast from 'react-native-toast-message';
 import InputField from '../components/InputField';
 import PasswordField from '../components/PasswordField';
 import FormButton from '../components/FormButton';
-import styles from '../styles/style';
+import createStyles from '../styles/style';
 import { authenticateUser } from '../services/user.service';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -32,6 +32,7 @@ const LoginScreen = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
+    const styles = createStyles();
 
     const handleLogin = async () => {
         if (!email) return showToast('Please enter your email.');
@@ -62,7 +63,7 @@ const LoginScreen = () => {
     return (
         <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            style={styles.container}
+            style={styles.container1}
         >
             <View style={styles.card}>
                 <Text style={styles.title}>AskBuddy</Text>

@@ -1,6 +1,6 @@
 import { InferenceClient } from '@huggingface/inference';
 
-const client = new InferenceClient("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");
+const client = new InferenceClient("");
 
 export const sendChatCompletion = async (messages: { role: string; content: string }[]) => {
   try {

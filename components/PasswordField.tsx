@@ -1,12 +1,13 @@
 import React from 'react';
 import { View, TextInput, TouchableOpacity, StyleSheet, TextInputProps } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import styles from '../styles/style'; 
+import createStyles from '../styles/style';
 
 interface PasswordFieldProps extends TextInputProps {
     isVisible: boolean;
     toggleVisibility: () => void;
 }
+const styles = createStyles();
 
 const PasswordField: React.FC<PasswordFieldProps> = ({ isVisible, toggleVisibility, ...props }) => {
     return (
