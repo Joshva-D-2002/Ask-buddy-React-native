@@ -8,16 +8,17 @@ import {
     SafeAreaView,
     KeyboardAvoidingView,
     Platform,
-    Keyboard,
+    TouchableWithoutFeedback,
     Dimensions,
     ActivityIndicator,
-    StyleSheet,
-    Alert
+    Alert,
+    Keyboard
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { InferenceClient } from '@huggingface/inference';
 import { sendChatCompletion } from '../services/chat.service';
- 
+import styles from '../styles/style'
+
 const client = new InferenceClient("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");
 const { height: screenHeight } = Dimensions.get('window');
 
@@ -43,27 +44,33 @@ export default function ChatScreen() {
 
     const initializeApp = async () => {
         try {
-            setIsInitializing(true)
+            setIsInitializing(true);
+            const storedName = await AsyncStorage.getItem('username');
+            if (storedName) {
+                setUserName(storedName);
+            }
+
+            const defaultChat: Chat = {
+                id: Date.now(),
+                messages: [],
+                title: 'New Chat',
+                timestamp: new Date(),
+                messageCount: 0
+            };
+            setChatHistory([defaultChat]);
+            setActiveChatId(defaultChat.id);
+
+            if (storedName) {
+                await sendInitialGreeting(storedName, defaultChat.id);
+            }
+
         } catch (error) {
             console.error('Error initializing app:', error);
-            // Create default chat if everything fails
-            createDefaultChat();
         } finally {
             setIsInitializing(false);
         }
     };
 
-    const createDefaultChat = () => {
-        const defaultChat: Chat = {
-            id: Date.now(),
-            messages: [],
-            title: 'New Chat',
-            timestamp: new Date(),
-            messageCount: 0
-        };
-        setChatHistory([defaultChat]);
-        setActiveChatId(defaultChat.id);
-    };
 
 
     const sendInitialGreeting = async (username: string, chatId: number) => {
@@ -83,7 +90,7 @@ export default function ChatScreen() {
                         ? {
                             ...chat,
                             messages: [userMessage, aiMessage],
-                            messageCount: 1
+                            messageCount: 0
                         }
                         : chat
                 )
@@ -98,8 +105,8 @@ export default function ChatScreen() {
     const filterAiResponse = (response: string) => {
         return response
             .replace(/deepseek/gi, 'AskBuddy')
-            .replace(/\*/g, '')               
-            .replace(/#/g, '');                
+            .replace(/\*/g, '')
+            .replace(/#/g, '');
     };
 
     const currentChat = chatHistory.find(chat => chat.id === activeChatId);
@@ -109,6 +116,7 @@ export default function ChatScreen() {
     };
 
     const handleSend = async () => {
+
         if (!userInput.trim() || !activeChatId) return;
 
         const currentChatData = chatHistory.find(chat => chat.id === activeChatId);
@@ -136,7 +144,6 @@ export default function ChatScreen() {
         setUserInput('');
         setIsLoading(true);
 
-        // Update chat history with user message
         setChatHistory(prev => prev.map(chat => {
             if (chat.id === activeChatId) {
                 const newMessages = [...chat.messages, userMessage];
@@ -147,7 +154,7 @@ export default function ChatScreen() {
                     messages: newMessages,
                     title: newTitle,
                     messageCount: chat.messageCount + 1,
-                    timestamp: new Date() // Update timestamp
+                    timestamp: new Date()
                 };
             }
             return chat;
@@ -187,7 +194,7 @@ export default function ChatScreen() {
     };
 
     const handleNewConversation = () => {
-        const newId = Date.now(); // Use timestamp for unique ID
+        const newId = Date.now();
         const newChat: Chat = {
             id: newId,
             messages: [],
@@ -232,399 +239,144 @@ export default function ChatScreen() {
 
     return (
         <SafeAreaView style={{ flex: 1 }}>
-            {/* Main Content */}
-            <View style={styles.mainContainer}>
-                <View style={styles.headerContainer}>
-                    <TouchableOpacity
-                        style={styles.menuButton}
-                        onPress={() => setSidebarVisible(true)}
-                    >
-                        <Text style={styles.menuButtonText}>☰</Text>
-                    </TouchableOpacity>
-                    <View style={styles.headerTextContainer}>
-                        <Text style={styles.header}>🤖 AskBuddy</Text>
-                        <Text style={styles.subtitle}>
-                            {userName ? `Hi ${userName}!` : 'Your AI Assistant'}
-                        </Text>
-                    </View>
-                    <View style={styles.headerSpacer} />
-                </View>
-
-                <ScrollView
-                    ref={scrollViewRef}
-                    contentContainerStyle={styles.chatContent}
-                    showsVerticalScrollIndicator={false}
-                    onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
-                >
-                    {visibleMessages.length === 0 ? (
-                        <View style={styles.emptyState}>
-                            <Text style={styles.emptyStateText}>👋 Start a conversation!</Text>
-                            <Text style={styles.emptyStateSubtext}>Ask me anything and I'll help you out.</Text>
-                            {currentChat && (
-                                <Text style={styles.messageCounter}>
-                                    {currentChat.messageCount}/{MAX_MESSAGES_PER_CHAT} messages used
+            <KeyboardAvoidingView
+                style={{ flex: 1 }}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+            >
+                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                    <View style={{ flex: 1 }}>
+                        <View style={styles.headerContainer}>
+                            <TouchableOpacity
+                                style={styles.menuButton}
+                                onPress={() => setSidebarVisible(true)}
+                            >
+                                <Text style={styles.menuButtonText}>☰</Text>
+                            </TouchableOpacity>
+                            <View style={styles.headerTextContainer}>
+                                <Text style={styles.header}>🤖 AskBuddy</Text>
+                                <Text style={styles.chatSubtitle}>
+                                    {userName ? `Hi ${userName}!` : 'Your AI Assistant'}
                                 </Text>
-                            )}
+                            </View>
+                            <View style={styles.headerSpacer} />
                         </View>
-                    ) : (
-                        <>
-                            {visibleMessages.map((msg, idx) => (
-                                <View
-                                    key={idx}
-                                    style={[styles.messageBubble, msg.sender === 'user' ? styles.userBubble : styles.aiBubble]}
-                                >
-                                    <Text style={[styles.messageText, msg.sender === 'user' && styles.userMessageText]}>
-                                        {msg.text}
-                                    </Text>
+
+                        <ScrollView
+                            ref={scrollViewRef}
+                            contentContainerStyle={styles.chatContent}
+                            showsVerticalScrollIndicator={false}
+                            keyboardShouldPersistTaps="handled"
+                            onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
+                        >
+                            {visibleMessages.length === 0 ? (
+                                <View style={styles.emptyState}>
+                                    <Text style={styles.emptyStateText}>👋 Start a conversation!</Text>
+                                    <Text style={styles.emptyStateSubtext}>Ask me anything and I'll help you out.</Text>
+                                    {currentChat && (
+                                        <Text style={styles.messageCounter}>
+                                            {currentChat.messageCount}/{MAX_MESSAGES_PER_CHAT} messages used
+                                        </Text>
+                                    )}
                                 </View>
-                            ))}
-                            {currentChat && (
-                                <View style={styles.messageCounterContainer}>
-                                    <Text style={styles.messageCounter}>
-                                        {currentChat.messageCount}/{MAX_MESSAGES_PER_CHAT} messages used
-                                    </Text>
+                            ) : (
+                                <>
+                                    {visibleMessages.map((msg, idx) => (
+                                        <View
+                                            key={idx}
+                                            style={[styles.messageBubble, msg.sender === 'user' ? styles.userBubble : styles.aiBubble]}
+                                        >
+                                            <Text style={[styles.messageText, msg.sender === 'user' && styles.userMessageText]}>
+                                                {msg.text}
+                                            </Text>
+                                        </View>
+                                    ))}
+                                    {currentChat && (
+                                        <View style={styles.messageCounterContainer}>
+                                            <Text style={styles.messageCounter}>
+                                                {currentChat.messageCount}/{MAX_MESSAGES_PER_CHAT} messages used
+                                            </Text>
+                                        </View>
+                                    )}
+                                </>
+                            )}
+                            {isLoading && (
+                                <View style={styles.loadingContainer}>
+                                    <ActivityIndicator size="small" color="#007bff" />
+                                    <Text style={styles.loadingText}>Thinking...</Text>
                                 </View>
                             )}
-                        </>
-                    )}
-                    {isLoading && (
-                        <View style={styles.loadingContainer}>
-                            <ActivityIndicator size="small" color="#007bff" />
-                            <Text style={styles.loadingText}>Thinking...</Text>
-                        </View>
-                    )}
-                </ScrollView>
-
-                <KeyboardAvoidingView
-                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                    keyboardVerticalOffset={90}
-                >
-                    <View style={styles.inputContainer}>
-                        <View style={styles.inputRow}>
-                            <TextInput
-                                value={userInput}
-                                onChangeText={setUserInput}
-                                placeholder="Type your message..."
-                                style={styles.input}
-                                multiline
-                                maxLength={500}
-                                editable={!isLoading}
-                            />
-                            <TouchableOpacity
-                                onPress={handleSend}
-                                style={[styles.sendButton, (!userInput.trim() || isLoading) && styles.sendButtonDisabled]}
-                                disabled={!userInput.trim() || isLoading}
-                            >
-                                <Text style={styles.sendButtonText}>Send</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </KeyboardAvoidingView>
-            </View>
-
-            {/* Sidebar Overlay */}
-            {sidebarVisible && (
-                <View style={styles.overlay}>
-                    <TouchableOpacity
-                        style={styles.overlayBackground}
-                        onPress={() => setSidebarVisible(false)}
-                    />
-                    <View style={styles.sidebar}>
-                        <View style={styles.sidebarHeader}>
-                            <Text style={styles.sidebarTitle}>Chat History</Text>
-                            <TouchableOpacity
-                                style={styles.closeButton}
-                                onPress={() => setSidebarVisible(false)}
-                            >
-                                <Text style={styles.closeButtonText}>×</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.newChatButton} onPress={handleNewConversation}>
-                                <Text style={styles.newChatButtonText}>+ New Chat</Text>
-                            </TouchableOpacity>
-                        </View>
-
-                        <ScrollView style={styles.chatList} showsVerticalScrollIndicator={false}>
-                            {chatHistory.map(chat => (
-                                <TouchableOpacity
-                                    key={chat.id}
-                                    style={[styles.chatItem, chat.id === activeChatId && styles.chatItemActive]}
-                                    onPress={() => handleChatSelect(chat.id)}
-                                >
-                                    <Text style={[styles.chatItemTitle, chat.id === activeChatId && styles.chatItemTitleActive]}>
-                                        {chat.title}
-                                    </Text>
-                                    <Text style={[styles.chatItemTime, chat.id === activeChatId && styles.chatItemTimeActive]}>
-                                        {formatTimestamp(chat.timestamp)}
-                                    </Text>
-                                    <Text style={[styles.chatItemPreview, chat.id === activeChatId && styles.chatItemPreviewActive]}>
-                                        {chat.messageCount}/{MAX_MESSAGES_PER_CHAT} messages • {chat.messages.filter(msg => !msg.hidden).length} visible
-                                    </Text>
-                                </TouchableOpacity>
-                            ))}
                         </ScrollView>
+
+                        <View style={styles.inputContainer}>
+                            <View style={styles.inputRow}>
+                                <TextInput
+                                    value={userInput}
+                                    onChangeText={setUserInput}
+                                    placeholder="Type your message..."
+                                    style={styles.chatInput}
+                                    multiline
+                                    textAlignVertical="top"
+                                    maxLength={500}
+                                    editable={!isLoading}
+                                />
+                                <TouchableOpacity
+                                    onPress={handleSend}
+                                    style={styles.sendButton}
+                                // style={[styles.sendButton, (!userInput.trim() || isLoading) && styles.sendButtonDisabled]}
+                                // disabled={!userInput.trim() || isLoading}
+                                >
+                                    <Text style={styles.sendButtonText}>Snd</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+
+                        {/* Sidebar Overlay */}
+                        {sidebarVisible && (
+                            <View style={styles.overlay}>
+                                <TouchableOpacity
+                                    style={styles.overlayBackground}
+                                    onPress={() => setSidebarVisible(false)}
+                                />
+                                <View style={styles.sidebar}>
+                                    <View style={styles.sidebarHeader}>
+                                        <Text style={styles.sidebarTitle}>Chat History</Text>
+                                        <TouchableOpacity
+                                            style={styles.closeButton}
+                                            onPress={() => setSidebarVisible(false)}
+                                        >
+                                            <Text style={styles.closeButtonText}>×</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity style={styles.newChatButton} onPress={handleNewConversation}>
+                                            <Text style={styles.newChatButtonText}>+ New Chat</Text>
+                                        </TouchableOpacity>
+                                    </View>
+
+                                    <ScrollView style={styles.chatList} showsVerticalScrollIndicator={false}>
+                                        {chatHistory.map(chat => (
+                                            <TouchableOpacity
+                                                key={chat.id}
+                                                style={[styles.chatItem, chat.id === activeChatId && styles.chatItemActive]}
+                                                onPress={() => handleChatSelect(chat.id)}
+                                            >
+                                                <Text style={[styles.chatItemTitle, chat.id === activeChatId && styles.chatItemTitleActive]}>
+                                                    {chat.title}
+                                                </Text>
+                                                <Text style={[styles.chatItemTime, chat.id === activeChatId && styles.chatItemTimeActive]}>
+                                                    {formatTimestamp(chat.timestamp)}
+                                                </Text>
+                                                <Text style={[styles.chatItemPreview, chat.id === activeChatId && styles.chatItemPreviewActive]}>
+                                                    {chat.messageCount}/{MAX_MESSAGES_PER_CHAT} messages • {chat.messages.filter(msg => !msg.hidden).length} visible
+                                                </Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </ScrollView>
+                                </View>
+                            </View>
+                        )}
                     </View>
-                </View>
-            )}
+                </TouchableWithoutFeedback>
+            </KeyboardAvoidingView>
         </SafeAreaView>
     );
 }
-
-const styles = StyleSheet.create({
-    // ... existing styles ...
-    overlay: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        zIndex: 1000,
-        flexDirection: 'row',
-    },
-    overlayBackground: {
-        flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    },
-    sidebar: {
-        width: 300,
-        backgroundColor: '#f8f9fa',
-        borderRightWidth: 1,
-        borderColor: '#e9ecef',
-        flexDirection: 'column',
-        elevation: 5,
-        shadowColor: '#000',
-        shadowOffset: { width: 2, height: 0 },
-        shadowOpacity: 0.25,
-        shadowRadius: 4,
-    },
-    sidebarHeader: {
-        padding: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: '#e9ecef',
-        backgroundColor: '#fff',
-    },
-    sidebarTitle: {
-        fontSize: 18,
-        fontWeight: '600',
-        color: '#212529',
-        marginBottom: 12,
-    },
-    closeButton: {
-        position: 'absolute',
-        top: 16,
-        right: 16,
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        backgroundColor: '#e9ecef',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    closeButtonText: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#495057',
-    },
-    newChatButton: {
-        backgroundColor: '#007bff',
-        paddingVertical: 8,
-        paddingHorizontal: 16,
-        borderRadius: 6,
-        alignItems: 'center',
-    },
-    newChatButtonText: {
-        color: '#fff',
-        fontSize: 14,
-        fontWeight: '500',
-    },
-    chatList: {
-        flex: 1,
-        padding: 8,
-    },
-    chatItem: {
-        padding: 12,
-        marginVertical: 4,
-        backgroundColor: '#fff',
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: '#e9ecef',
-    },
-    chatItemActive: {
-        backgroundColor: '#007bff',
-        borderColor: '#007bff',
-    },
-    chatItemTitle: {
-        fontSize: 14,
-        fontWeight: '500',
-        color: '#212529',
-        marginBottom: 4,
-    },
-    chatItemTitleActive: {
-        color: '#fff',
-    },
-    chatItemTime: {
-        fontSize: 12,
-        color: '#6c757d',
-        marginBottom: 2,
-    },
-    chatItemTimeActive: {
-        color: '#e3f2fd',
-    },
-    chatItemPreview: {
-        fontSize: 12,
-        color: '#868e96',
-    },
-    chatItemPreviewActive: {
-        color: '#e3f2fd',
-    },
-    mainContainer: {
-        flex: 1,
-        backgroundColor: '#fff',
-        flexDirection: 'column',
-    },
-    headerContainer: {
-        paddingVertical: 16,
-        paddingHorizontal: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: '#e9ecef',
-        backgroundColor: '#fff',
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    menuButton: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: '#f8f9fa',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 12,
-    },
-    menuButtonText: {
-        fontSize: 18,
-        color: '#495057',
-    },
-    headerTextContainer: {
-        flex: 1,
-        alignItems: 'center',
-    },
-    headerSpacer: {
-        width: 52,
-    },
-    header: {
-        fontSize: 24,
-        fontWeight: '700',
-        color: '#212529',
-        textAlign: 'center',
-    },
-    subtitle: {
-        fontSize: 14,
-        color: '#6c757d',
-        textAlign: 'center',
-        marginTop: 4,
-    },
-    chatContent: {
-        flexGrow: 1,
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-    },
-    emptyState: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingVertical: 60,
-    },
-    emptyStateText: {
-        fontSize: 18,
-        fontWeight: '600',
-        color: '#495057',
-        marginBottom: 8,
-    },
-    emptyStateSubtext: {
-        fontSize: 14,
-        color: '#6c757d',
-        textAlign: 'center',
-        marginBottom: 16,
-    },
-    messageCounter: {
-        fontSize: 12,
-        color: '#6c757d',
-        textAlign: 'center',
-        fontStyle: 'italic',
-    },
-    messageCounterContainer: {
-        alignItems: 'center',
-        marginTop: 8,
-    },
-    messageBubble: {
-        marginVertical: 6,
-        padding: 12,
-        borderRadius: 12,
-        maxWidth: '80%',
-        alignSelf: 'flex-start',
-    },
-    userBubble: {
-        alignSelf: 'flex-end',
-        backgroundColor: '#007bff',
-    },
-    aiBubble: {
-        backgroundColor: '#f8f9fa',
-        borderWidth: 1,
-        borderColor: '#e9ecef',
-    },
-    messageText: {
-        fontSize: 14,
-        lineHeight: 20,
-        color: '#212529',
-    },
-    userMessageText: {
-        color: '#fff',
-    },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingVertical: 12,
-    },
-    loadingText: {
-        marginLeft: 8,
-        fontSize: 14,
-        color: '#6c757d',
-    },
-    inputContainer: {
-        backgroundColor: '#fff',
-        borderTopWidth: 1,
-        borderTopColor: '#e9ecef',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-    },
-    inputRow: {
-        flexDirection: 'row',
-        alignItems: 'flex-end',
-        gap: 8,
-    },
-    input: {
-        flex: 1,
-        borderColor: '#ced4da',
-        borderWidth: 1,
-        borderRadius: 20,
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-        fontSize: 14,
-        maxHeight: 100,
-        backgroundColor: '#fff',
-    },
-    sendButton: {
-        backgroundColor: '#007bff',
-        paddingVertical: 10,
-        paddingHorizontal: 20,
-        borderRadius: 20,
-    },
-    sendButtonDisabled: {
-        backgroundColor: '#6c757d',
-    },
-    sendButtonText: {
-        color: '#fff',
-        fontSize: 14,
-        fontWeight: '500',
-    },
-});

@@ -14,6 +14,7 @@ import PasswordField from '../components/PasswordField';
 import FormButton from '../components/FormButton';
 import styles from '../styles/style';
 import { authenticateUser } from '../services/user.service';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type LoginScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Login'>;
 
@@ -40,6 +41,7 @@ const LoginScreen = () => {
             const user = await authenticateUser(email, password);
 
             if (user) {
+                await AsyncStorage.setItem('username', user.username); 
                 Toast.show({
                     type: 'success',
                     text1: 'Login successful!',

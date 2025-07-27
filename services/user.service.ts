@@ -33,7 +33,6 @@ export const addUser = async (newUser: {
   password: string;
 }) => {
   try {
-    // Get current data structure
     const currentData = await axios.get(`${BIN_URL}/latest`, { headers });
     const existingData = currentData.data.record || {};
     const users = existingData.users || [];
@@ -48,7 +47,6 @@ export const addUser = async (newUser: {
 
     const updatedUsers = [...users, newUser];
     
-    // Preserve existing chat histories while updating users
     const updatedData = {
       ...existingData,
       users: updatedUsers
