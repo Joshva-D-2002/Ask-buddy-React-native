@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "AskBuddy",
-    "slug": "AskBuddy",
+    "slug": "ask-buddy",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/Ask_Buddy.png",
@@ -31,8 +31,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "5d6abd7a-f2f8-4e4b-b400-fefceeee4873"
+        "projectId": "028bfa8c-35d4-4283-bdd3-674a6577dd64"
       }
-    }
+    },
+    "owner": "joshva"
   }
 }
