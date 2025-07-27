@@ -1,11 +1,12 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet } from 'react-native';
-import styles from '../styles/style';
+import createStyles from '../styles/style';
 
 interface FormButtonProps {
     title: string;
     onPress: () => void;
 }
+const styles = createStyles();
 
 const FormButton: React.FC<FormButtonProps> = ({ title, onPress }) => (
     <TouchableOpacity style={styles.button} onPress={onPress}>

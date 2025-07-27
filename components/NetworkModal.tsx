@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Modal, View, Text, Pressable } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
-import Style from '../styles/style';
+import createStyles from '../styles/style';
 import Toast from 'react-native-toast-message';
 
 const NetworkModal = () => {
@@ -9,6 +9,8 @@ const NetworkModal = () => {
   const [showModal, setShowModal] = useState(false);
   const modalTimerRef = useRef<NodeJS.Timeout | null>(null);
   const secondToastTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const styles = createStyles();
+
 
   const checkConnection = async () => {
     const state = await NetInfo.fetch();
@@ -80,14 +82,14 @@ const NetworkModal = () => {
       visible={showModal}
       onRequestClose={() => { }}
     >
-      <View style={Style.networkBackdrop}>
-        <View style={Style.networkModal}>
-          <Text style={Style.networkTitle}>No Internet Connection</Text>
-          <Text style={Style.networkMessage}>
+      <View style={styles.networkBackdrop}>
+        <View style={styles.networkModal}>
+          <Text style={styles.networkTitle}>No Internet Connection</Text>
+          <Text style={styles.networkMessage}>
             Please turn on mobile data or Wi-Fi to continue using the app.
           </Text>
-          <Pressable style={Style.networkRetryButton} onPress={checkConnection}>
-            <Text style={Style.networkRetryText}>Retry</Text>
+          <Pressable style={styles.networkRetryButton} onPress={checkConnection}>
+            <Text style={styles.networkRetryText}>Retry</Text>
           </Pressable>
         </View>
       </View>

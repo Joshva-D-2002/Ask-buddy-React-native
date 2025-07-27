@@ -1,8 +1,11 @@
 import React from 'react';
 import { TextInput, StyleSheet, TextInputProps } from 'react-native';
-import styles from '../styles/style';
+import createStyles from '../styles/style';
 
 interface InputFieldProps extends TextInputProps {}
+
+const styles = createStyles();
+
 
 const InputField: React.FC<InputFieldProps> = (props) => {
     return (
